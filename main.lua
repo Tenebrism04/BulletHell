@@ -23,6 +23,9 @@ local score = 0
 local menuItems = {"Start", "Controls", "Leaderboard", "Exit"}
 local selected = 1
 
+local menuY = 0
+local targetMenuY = 0
+
 function drawCentered(text, y, font)
     love.graphics.setFont(font)
     local w = font:getWidth(text)
@@ -69,6 +72,8 @@ function love.update(dt)
     if state ~= "menu" then
     fade = math.max(0, fade - fadeSpeed * dt)
     else
+    targetMenuY = selected * 40
+    menuY = menuY + (targetMenuY - menuY) * 10 * dt
     fade = math.min(1, fade + fadeSpeed * dt)
     end
 
@@ -189,20 +194,49 @@ end
 
 function love.draw()
 
+    love.graphics.setColor(0.05, 0.05, 0.08)
+    love.graphics.rectangle("fill", 0, 0, 800, 600)
+
+    for i = 1, 40 do
+        local x = (i * 97 + love.timer.getTime() * 30) % 800
+        local y = (i * 53 + love.timer.getTime() * 20) % 600
+        love.graphics.setColor(0.1, 0.1, 0.15, 0.3)
+        love.graphics.circle("fill", x, y, 2)
+    end
+
+love.graphics.setColor(1, 1, 1)
+
     if state == "menu" then
         love.graphics.clear(0.05, 0.05, 0.08)
+        
+        if i == selected then
+        love.graphics.setColor(1, 0.6, 0.2, 0.2)
+        love.graphics.print(item, 295, y)
+        love.graphics.print(item, 305, y)
+        end
 
-        drawCentered("BULLET HELL", 120, fontBig)
+        -- Title
+        love.graphics.setColor(1, 0.6, 0.2)
+        drawCentered("BULLET HELL", 110 + math.sin(love.timer.getTime() * 2) * 3, fontBig)
+        love.graphics.setColor(1, 1, 1)
 
         for i, item in ipairs(menuItems) do
-            if i == selected then
-                love.graphics.setColor(1, 0.6, 0.2)
-                drawCentered("> " .. item, 220 + i * 40, fontMed)
-            else
-                love.graphics.setColor(1, 1, 1)
-                drawCentered(item, 220 + i * 40, fontMed)
-            end
-        end
+    local y = 220 + i * 40
+
+    local offset = 0
+    if i == selected then
+        offset = 10 * math.sin(love.timer.getTime() * 6)
+        love.graphics.setColor(1, 0.7, 0.2)
+    else
+        love.graphics.setColor(0.7, 0.7, 0.7)
+    end
+
+    love.graphics.print(
+        item,
+        300 + offset,
+        y + (i - selected) * 2
+    )
+end
 
         return
     end

@@ -1,6 +1,6 @@
 local ScoreDB = require("db")
 
-local player = {x = 400, y = 500, r = 6, speed = 260, hp = 3, bomb = 3}
+local player = {x = 400, y = 500, r = 6, speed = 260, hp = 3}
 
 local bullets = {}
 
@@ -9,14 +9,19 @@ local spiralAngle = 0
 local shootTimer = 0
 local shootInterval = 0.5
 local minShootInterval = 0.25
-local difficultyTimer = 0
+
+local fade = 1
+local fadeSpeed = 2
 
 local screenShake = 0
 
-local state = "playing"
+local state = "menu"
 
 local playerName = ""
 local score = 0
+
+local menuItems = {"Start", "Controls", "Leaderboard", "Exit"}
+local selected = 1
 
 function drawCentered(text, y, font)
     love.graphics.setFont(font)
@@ -25,7 +30,6 @@ function drawCentered(text, y, font)
 end
 
 function spawnRadial(x, y)
-    -- number of bullets in a pattern
     local count = 18
     local speed = 200
 
@@ -41,43 +45,46 @@ function spawnRadial(x, y)
     end
 end
 
-
+function resetGame()
+    player.x = 400
+    player.y = 500
+    player.hp = 3
+    bullets = {}
+    shootTimer = 0
+    shootInterval = 0.5
+    score = 0
+    screenShake = 0
+end
 
 function love.load()
-    
     ScoreDB.init("scores.db")
-    love.window.setTitle("Pattern Bullet Hell")
 
-    -- UI
     fontBig = love.graphics.newFont(32)
     fontMed = love.graphics.newFont(20)
     fontSmall = love.graphics.newFont(14)
-
-    table.insert(bullets, {
-    x = 400,
-    y = 300,
-    vx = 0,
-    vy = -200
-})
-
 end
 
 function love.update(dt)
 
-    
+    if state ~= "menu" then
+    fade = math.max(0, fade - fadeSpeed * dt)
+    else
+    fade = math.min(1, fade + fadeSpeed * dt)
+    end
+
     if state ~= "playing" then return end
 
     shootInterval = math.max(minShootInterval, shootInterval * (1 - 0.02 * dt))
-    
+
     shootTimer = shootTimer + dt
     if shootTimer >= shootInterval then
         spawnRadial(400 + math.sin(love.timer.getTime()) * 100, 300)
         shootTimer = 0
     end
-    
+
     score = score + dt * 10
     spiralAngle = spiralAngle + 2.5 * dt
-    -- reverse loop
+
     for i = #bullets, 1, -1 do
         local b = bullets[i]
 
@@ -85,67 +92,93 @@ function love.update(dt)
         b.y = b.y + b.vy * dt
 
         if b.y < -50 or b.y > 850 or b.x < -50 or b.x > 850 then
-         table.remove(bullets, i)
+            table.remove(bullets, i)
         end
     end
-    
-    -- movement
-    if love.keyboard.isDown("a") then
-    player.x = player.x - player.speed * dt
-    end
 
-    if love.keyboard.isDown("s") then
-    player.y = player.y + player.speed * dt
-    end
+    if love.keyboard.isDown("a") then player.x = player.x - player.speed * dt end
+    if love.keyboard.isDown("d") then player.x = player.x + player.speed * dt end
+    if love.keyboard.isDown("w") then player.y = player.y - player.speed * dt end
+    if love.keyboard.isDown("s") then player.y = player.y + player.speed * dt end
 
-    if love.keyboard.isDown("d") then
-    player.x = player.x + player.speed * dt
-    end
-
-    if love.keyboard.isDown("w") then
-    player.y = player.y - player.speed * dt
-    end
-
-    -- collision
     for i = #bullets, 1, -1 do
         local b = bullets[i]
 
         local dx = player.x - b.x
         local dy = player.y - b.y
+        local d2 = dx * dx + dy * dy
 
-        local distanceSq = dx * dx + dy * dy
-        local radius = player.r + 3             -- circles are "touching"
+        local r = player.r + 3
 
-        if distanceSq < radius * radius then
-            -- should stop game here
-            
+        if d2 < r * r then
             player.hp = player.hp - 1
             screenShake = 5
             table.remove(bullets, i)
 
             if player.hp <= 0 then
-                player.hp = 0
                 state = "nameinput"
-                end
-
+            end
         end
     end
 
     if screenShake > 0 then
-    screenShake = math.max(0, screenShake - 10 * dt)
+        screenShake = math.max(0, screenShake - 10 * dt)
     end
-
-   
 end
 
--- -- testing only
---  function love.keypressed(key)
---     if key == "space" then
---         spawnRadial(400, 300)
---     end
--- end
+function love.keypressed(key)
 
--- name input
+    if state == "menu" then
+        if key == "up" then selected = selected - 1 end
+        if key == "down" then selected = selected + 1 end
+
+        if selected < 1 then selected = #menuItems end
+        if selected > #menuItems then selected = 1 end
+
+        if key == "return" then
+            local choice = menuItems[selected]
+
+            if choice == "Start" then
+                resetGame()
+                state = "playing"
+            elseif choice == "Controls" then
+                state = "controls"
+            elseif choice == "Leaderboard" then
+                state = "leaderboard"
+            elseif choice == "Exit" then
+                love.event.quit()
+            end
+        end
+    end
+
+    if state == "controls" and key == "escape" then
+        state = "menu"
+    end
+
+    if state == "leaderboard" and key == "escape" then
+        state = "menu"
+    end
+
+    if state == "nameinput" then
+        if key == "backspace" then
+            playerName = playerName:sub(1, -2)
+        end
+
+        if key == "return" then
+            ScoreDB.save(playerName, math.floor(score))
+            state = "leaderboard"
+        end
+    end
+
+    if key == "r" and state ~= "playing" then
+        love.event.quit("restart")
+    end
+
+    if key == "space" and state == "playing" then
+        spawnRadial(400, 300)
+    end
+end
+
 function love.textinput(t)
     if state == "nameinput" then
         if #playerName < 12 then
@@ -154,29 +187,52 @@ function love.textinput(t)
     end
 end
 
--- backspace handling
-function love.keypressed(key)
-    if state == "nameinput" then
-        if key == "backspace" then
-            playerName = playerName:sub(1, -2)
-        end
-
-        if key == "return" then
-            ScoreDB.save(playerName, math.floor(score)) -- replace 0 with your score later
-            state = "leaderboard"
-        end
-
-        
-    end
-    if key == "r" and state ~= "playing" then
-        love.event.quit("restart")
-        end
-end
-
 function love.draw()
 
-   if state == "nameinput" then
+    if state == "menu" then
+        love.graphics.clear(0.05, 0.05, 0.08)
 
+        drawCentered("BULLET HELL", 120, fontBig)
+
+        for i, item in ipairs(menuItems) do
+            if i == selected then
+                love.graphics.setColor(1, 0.6, 0.2)
+                drawCentered("> " .. item, 220 + i * 40, fontMed)
+            else
+                love.graphics.setColor(1, 1, 1)
+                drawCentered(item, 220 + i * 40, fontMed)
+            end
+        end
+
+        return
+    end
+
+    if state == "controls" then
+        love.graphics.clear(0.05, 0.05, 0.08)
+        drawCentered("CONTROLS", 120, fontBig)
+        drawCentered("WASD - Move", 220, fontMed)
+        drawCentered("Avoid bullets", 260, fontMed)
+        drawCentered("ESC to return", 340, fontSmall)
+        return
+    end
+
+    if state == "leaderboard" then
+    leaderboardData = ScoreDB.getTop(10)
+    drawCentered("LEADERBOARD", 120, fontBig)
+
+    for i, entry in ipairs(leaderboardData) do
+        love.graphics.print(
+            i .. ". " .. entry.name .. " - " .. entry.score,
+            300,
+            200 + i * 25
+        )
+    end
+
+    drawCentered("Press R to return", 500, fontSmall)
+    return
+end
+
+    if state == "nameinput" then
         love.graphics.setColor(0, 0, 0, 0.6)
         love.graphics.rectangle("fill", 0, 0, 800, 600)
         love.graphics.setColor(1, 1, 1)
@@ -184,48 +240,32 @@ function love.draw()
         drawCentered("GAME OVER", 180, fontBig)
         drawCentered("Enter Name", 240, fontMed)
         drawCentered(playerName .. "_", 280, fontMed)
-
         return
     end
 
-if state == "leaderboard" then
-
-    love.graphics.setColor(0, 0, 0, 0.6)
-    love.graphics.rectangle("fill", 0, 0, 800, 600)
-    love.graphics.setColor(1, 1, 1)
-
-    drawCentered("SCORE SAVED!", 180, fontBig)
-    drawCentered("Press R to restart", 240, fontMed)
-
-    return
-end
-
-    local flooredShake = math.floor(screenShake)
-
-    local offsetX = math.random(-flooredShake, flooredShake)
-    local offsetY = math.random(-flooredShake, flooredShake)
-    
-    -- local offsetX = (math.random() * 2 - 1) * screenShake
-    -- local offsetY = (math.random() * 2 - 1) * screenShake
+    local shake = math.floor(screenShake)
+    local ox = math.random(-shake, shake)
+    local oy = math.random(-shake, shake)
 
     love.graphics.push()
-    love.graphics.translate(offsetX, offsetY)
-
+    love.graphics.translate(ox, oy)
 
     for i = 1, #bullets do
         local b = bullets[i]
         love.graphics.circle("fill", b.x, b.y, 3)
     end
+
     love.graphics.circle("fill", player.x, player.y, player.r)
 
-    -- original screen
     love.graphics.pop()
 
-    -- HUD
     love.graphics.setFont(fontSmall)
     love.graphics.print("HP: " .. player.hp, 10, 10)
-    love.graphics.print("Score: " .. math.floor(score or 0), 10, 30)
+    love.graphics.print("Score: " .. math.floor(score), 10, 30)
 
+    if fade > 0 then
+    love.graphics.setColor(0, 0, 0, fade)
+    love.graphics.rectangle("fill", 0, 0, 800, 600)
     love.graphics.setColor(1, 1, 1)
+    end
 end
-

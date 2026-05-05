@@ -15,7 +15,7 @@ local sounds = {
 -- Player
 local player = {
     x = 400, y = 500, r = 6, speed = 260,
-    hp = 100, bombs = 3,
+    hp = 5, bombs = 3,
     bombActive = false, bombTimer = 0,
     invincible = false, invincibleTimer = 0
 }
@@ -236,7 +236,7 @@ end
 -- Reset
 local function resetGame()
     player.x, player.y = 400, 500
-    player.hp = 100
+    player.hp = 5
     player.bombs = 3
     player.bombActive = false
     player.bombTimer = 0
@@ -444,8 +444,8 @@ end
 
 function love.keypressed(key)
     if state == "menu" then
-        if key == "up" then selected = selected - 1 love.audio.play(sounds.select) end
-        if key == "down" then selected = selected + 1 love.audio.play(sounds.select) end
+        if key == "w" then selected = selected - 1 love.audio.play(sounds.select) end
+        if key == "s" then selected = selected + 1 love.audio.play(sounds.select) end
         if selected < 1 then selected = #menuItems end
         if selected > #menuItems then selected = 1 end
         if key == "return" then
@@ -527,9 +527,10 @@ function love.draw()
         drawCentered("CONTROLS", 120, fontBig)
         drawCentered("WASD - Move", 210, fontMed)
         drawCentered("X - Bomb  (clears screen, invincible)", 250, fontMed)
-        drawCentered("Collect glowing orbs for bonus bombs", 290, fontMed)
-        drawCentered("Survive as long as possible", 330, fontMed)
-        drawCentered("ESC to return", 400, fontSmall)
+        drawCentered("Left Shift - Focus  (Move at a slower speed)", 290, fontMed)
+        drawCentered("Collect glowing orbs for bonus bombs", 330, fontMed)
+        drawCentered("Survive as long as possible", 400, fontMed)
+        drawCentered("ESC to return", 470, fontSmall)
         return
     end
 
@@ -595,6 +596,20 @@ function love.draw()
         love.graphics.setFont(fontTiny)
         love.graphics.print("B", pk.x - 4, pk.y - 6)
     end
+
+    -- boss
+    local bx = 400 + math.sin(love.timer.getTime()) * 100
+    local by = 300
+    local pulse = math.abs(math.sin(love.timer.getTime() * 3))
+
+    love.graphics.setColor(0.6, 0.2, 1, 0.15 + pulse * 0.1)
+    love.graphics.circle("fill", bx, by, 38 + pulse * 5)
+
+    love.graphics.setColor(0.5, 0.15, 0.9)
+    love.graphics.circle("fill", bx, by, 22)
+
+    love.graphics.setColor(0.8, 0.5, 1)
+    love.graphics.circle("fill", bx, by, 10)
 
     -- bullet trails
     for _, b in ipairs(bullets) do

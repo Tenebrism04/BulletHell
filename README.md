@@ -2,6 +2,8 @@
 
 A very simple bullet-hell style prototype game built with LÖVE (Love2D) and Lua.
 
+Check the latest release [here](https://github.com/Tenebrism04/BulletHell/releases)
+
 # Features
 
 - Fast-paced bullet-hell gameplay
